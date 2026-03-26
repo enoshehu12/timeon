@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLOYEE
+  TEAM_LEADER
+  MANAGER
+  HR
+  ADMIN
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      Role
+  employee  Employee?
+  createdAt DateTime  @default(now())
+}
+
+model Team {
+  id   String @id @default(uuid())
+  name String
+
+  leaderId String?   @unique
+  leader   Employee? @relation("TeamLeader", fields: [leaderId], references: [id])
+
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+}
+
+model Employee {
+  id           String @id @default(uuid())
+  employeeCode String @unique
+  firstName    String
+  lastName     String
+  email        String @unique
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id])
+
+  role Role
+
+  salary     Float?
+  hourlyRate Float?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  attendances  Attendance[]
+  leaveBalance LeaveBalance?
+
+  leadingTeam Team? @relation("TeamLeader")
+
+  attendanceRequests AttendanceRequest[] @relation("EmployeeRequests")
+  reviewedRequests   AttendanceRequest[] @relation("ReviewedBy")
+
+  vacationRequests  VacationRequest[]
+  reviewedVacations VacationRequest[] @relation("VacationReviewedBy")
+  schedules         Schedule[]
+}
+
+model Attendance {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  date     DateTime
+  clockIn  DateTime?
+  clockOut DateTime?
+
+  status String
+
+  createdAt DateTime @default(now())
+}
+
+model LeaveBalance {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  totalDays     Float @default(0)
+  usedDays      Float @default(0)
+  remainingDays Float @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+model AttendanceRequest {
+  id String @id @default(uuid())
+
+  employeeId String
+  employee   Employee @relation("EmployeeRequests", fields: [employeeId], references: [id])
+
+  type          String
+  requestedTime DateTime
+  status        String   @default("PENDING")
+
+  reviewedById String?
+  reviewedBy   Employee? @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model VacationRequest {
+  id String @id @default(uuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  status String @default("PENDING")
+
+  reviewedById String?
+  reviewedBy   Employee? @relation("VacationReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Schedule {
+  id         String   @id @default(uuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  scheduleDate DateTime
+  plannedStart DateTime
+  plannedEnd   DateTime
+
+  breakMinutes Int     @default(0)
+  shiftType    String? // REGULAR, OFF, UNPAID_LEAVE, SICKNESS, BANK_HOLIDAY, MATERNITY_LEAVE, MARRIAGE_LEAVE, BEREAVEMENT_LEAVE, UNPAID_LATENESS
+
+  createdAt DateTime @default(now())
+}
+
+model Holiday {
+  id          String   @id @default(uuid())
+  holidayDate DateTime @unique
+  name        String
+  createdAt   DateTime @default(now())
+}
